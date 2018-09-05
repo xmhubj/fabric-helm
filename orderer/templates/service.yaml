@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "orderer.fullname" . }}
+  labels:
+    app: {{ include "orderer.name" . }}
+    chart: {{ include "orderer.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ include "orderer.name" . }}
+    release: {{ .Release.Name }}

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orderer0
+  namespace: ordererorg1
+spec:
+  selector:
+    app: hyperledger
+    role: orderer
+    orderer-id: orderer0
+    org: ordererorg1
+  type: NodePort
+  ports:
+  - name: listen-endpoint
+    protocol: TCP
+    port: 7050
+    targetPort: 7050
+    nodePort: 32000
