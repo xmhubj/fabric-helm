@@ -1,51 +1,68 @@
-apiVersion: apps/v1beta2
+apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: {{ include "orderer.fullname" . }}
-  labels:
-    app: {{ include "orderer.name" . }}
-    chart: {{ include "orderer.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+  {{- with .Values.ord }}
+  namespace: {{ .org }}
+  name: {{ .name }}
+  {{- end }}
 spec:
-  replicas: {{ .Values.replicaCount }}
-  selector:
-    matchLabels:
-      app: {{ include "orderer.name" . }}
-      release: {{ .Release.Name }}
+  replicas: 1
+  strategy: {}
   template:
     metadata:
       labels:
-        app: {{ include "orderer.name" . }}
-        release: {{ .Release.Name }}
+        app: hyperledger
+        role: orderer
+        org: {{ .Values.ord.org }}
+        orderer-id: {{ .Values.ord.name }}
     spec:
+      volumes:
+      - name: sharedvolume
+        persistentVolumeClaim:
+          claimName: shared-pvc
+      - name: genesisblock
+        secret:
+          secretName: genesis-block
+
       containers:
-        - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - name: http
-              containerPort: 80
-              protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /
-              port: http
-          resources:
-{{ toYaml .Values.resources | indent 12 }}
-    {{- with .Values.nodeSelector }}
-      nodeSelector:
-{{ toYaml . | indent 8 }}
-    {{- end }}
-    {{- with .Values.affinity }}
-      affinity:
-{{ toYaml . | indent 8 }}
-    {{- end }}
-    {{- with .Values.tolerations }}
-      tolerations:
-{{ toYaml . | indent 8 }}
-    {{- end }}
+      - name: {{ .Values.ord.name }}-{{ .Values.ord.org }}
+        image: {{ .Values.app.image }}:{{ .Values.app.tag }}
+        command: ["sh", "-c", "sleep 5 && while [ ! -f /shared/status_configtxgen_complete ]; do echo Waiting for configtxgen; sleep 1; done; orderer"]
+        env:
+        - name: ORDERER_GENERAL_LOGLEVEL
+          value: debug
+        - name: ORDERER_CFG_PATH
+          value: /shared/
+        - name: ORDERER_GENERAL_LEDGERTYPE
+          value: file
+        - name: ORDERER_FILELEDGER_LOCATION
+          value: /shared/ledger/orderer0
+        - name: ORDERER_GENERAL_LISTENADDRESS
+          value: 0.0.0.0
+        - name: ORDERER_GENERAL_LOCALMSPDIR
+          value: /shared/crypto-config/ordererOrganizations/ordererorg1/orderers/orderer0.ordererorg1/msp
+        - name: ORDERER_GENERAL_LOCALMSPID
+          value: {{ .Values.ord.mspID }}
+        - name: ORDERER_GENERAL_GENESISMETHOD
+          value: file
+        - name: ORDERER_GENERAL_GENESISFILE
+          value: /shared/genesis.block
+        - name: ORDERER_GENERAL_TLS_ENABLED
+          value: "false"
+        - name: ORDERER_GENERAL_TLS_PRIVATEKEY
+          value: /shared/crypto-config/ordererOrganizations/ordererorg1/orderers/orderer0.ordererorg1/tls/server.key
+        - name: ORDERER_GENERAL_TLS_CERTIFICATE
+          value: /shared/crypto-config/ordererOrganizations/ordererorg1/orderers/orderer0.ordererorg1/tls/server.crt
+        # THIS IS BROKEN: * 'General.TLS.RootCAs': source data must be an array or slice, got string
+        #- name: ORDERER_GENERAL_TLS_ROOTCAS
+        #  value: /shared/crypto-config/ordererOrganizations/ordererorg1/orderers/orderer0.ordererorg1/tls/ca.crt
+        - name: GODEBUG
+          value: netdns=go
+        workingDir: /opt/gopath/src/github.com/hyperledger/fabric/orderer
+        ports:
+        - containerPort: 7050
+        volumeMounts:
+        - mountPath: /shared
+          name: sharedvolume
+        - mountPath: /var/hyperledger/genesis
+          name: genesisblock

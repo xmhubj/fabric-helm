@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.ord.name }}
+  namespace: {{ .Values.ord.org }}
+data:
+  ORDERER_GENERAL_LOGLEVEL: debug
+  ORDERER_CFG_PATH: /var/hyperledger/config
+  ORDERER_GENERAL_LEDGERTYPE: file
+  ORDERER_FILELEDGER_LOCATION: /var/hyperledger/ledger
+  ORDERER_GENERAL_LISTENADDRESS: 0.0.0.0
+  ORDERER_GENERAL_LOCALMSPDIR: /var/hyperledger/msp
+  ORDERER_GENERAL_LOCALMSPID: {{ .Values.ord.mspID }}
+  ORDERER_GENERAL_GENESISMETHOD: file
+  ORDERER_GENERAL_GENESISFILE: /var/hyperledger/genesis.block
+  ORDERER_GENERAL_TLS_ENABLED: "false"
+  ORDERER_GENERAL_TLS_PRIVATEKEY: /var/hyperledger/tls/tls.crt
+  ORDERER_GENERAL_TLS_CERTIFICATE: /var/hyperledger/tls/tls.key
+  GODEBUG: netdns=go
